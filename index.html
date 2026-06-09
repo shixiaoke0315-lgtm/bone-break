@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OssiScan · 骨折智能识别</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#06090f;--film:#000;--panel:#0d131d;--panel-2:#121b27;
+    --line:#1d2a3a;--line-soft:#16212f;--txt:#e7eef6;--txt-2:#9fb0c2;--muted:#64768a;
+    --accent:#35e5d0;--accent-dim:#1c6b63;
+    --red:#ff3b46;--red-deep:#e11d2a;--red-soft:#1c0a0d;--red-bd:#5a232b;
+    --low:#4ade80;--mod:#fbbf24;--high:#ff3b46;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+    --disp:"Space Grotesk",system-ui,sans-serif;
+    --body:"Inter","Noto Sans KR",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:radial-gradient(1100px 560px at 78% -12%,#0c1826,transparent 60%),var(--bg);
+    color:var(--txt);font-family:var(--body);-webkit-font-smoothing:antialiased;min-height:100vh}
+
+  header{display:flex;align-items:center;gap:16px;padding:14px 22px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#0b121b,#080d15);position:sticky;top:0;z-index:30;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:11px;font-family:var(--disp)}
+  .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+    background:linear-gradient(150deg,var(--accent),#138f84);box-shadow:0 0 0 1px #2ee0cb55,0 6px 18px -6px #35e5d0aa}
+  .logo svg{width:20px;height:20px}
+  .brand b{font-size:18px;letter-spacing:.3px}.brand b span{color:var(--accent)}
+  .brand small{display:block;font-size:10.5px;letter-spacing:2.4px;color:var(--muted);font-family:var(--mono);text-transform:uppercase}
+  .spacer{flex:1}
+  .lang{display:flex;gap:3px;background:#0c1521;border:1px solid var(--line-soft);border-radius:9px;padding:3px}
+  .lang button{border:0;background:transparent;color:var(--txt-2);font-family:var(--mono);font-size:12px;font-weight:500;
+    padding:6px 11px;border-radius:6px;cursor:pointer;transition:.15s}
+  .lang button:hover{color:var(--txt)}
+  .lang button.on{background:var(--accent);color:#04231f;font-weight:600}
+  .pill{font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
+    color:var(--txt-2);display:flex;align-items:center;gap:7px;background:#0a121b}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+  .dot.idle{background:var(--muted);box-shadow:none}
+  .dot.busy{background:var(--mod);box-shadow:0 0 8px var(--mod)}
+
+  .wrap{max-width:980px;margin:0 auto;padding:26px 22px 60px}
+  .step-lead{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;margin:0 0 8px}
+  .h-title{font-family:var(--disp);font-size:24px;font-weight:700;margin:0 0 6px;line-height:1.2}
+  .h-sub{color:var(--txt-2);font-size:13.5px;margin:0 0 20px;line-height:1.6}
+
+  .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .tgroup{display:flex;gap:4px;background:#0c1521;border:1px solid var(--line-soft);border-radius:10px;padding:4px}
+  .tbtn{border:0;background:transparent;color:var(--txt-2);font-family:var(--body);font-size:13px;font-weight:500;
+    padding:7px 12px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:.16s}
+  .tbtn svg{width:15px;height:15px;flex:none}
+  .tbtn:hover{color:var(--txt)}
+  .tbtn.on{background:var(--accent);color:#04231f;font-weight:600}
+  .tbtn.ghost{border:1px solid var(--line);background:#0c1521}
+  .tbtn.ghost:hover{border-color:var(--accent-dim);color:var(--txt)}
+  .tbtn:disabled{opacity:.4;cursor:not-allowed}
+  .slider{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+  .slider input{width:74px;accent-color:var(--accent);cursor:pointer}
+  .slider b{color:var(--txt-2);min-width:34px;text-align:right}
+
+  .stage{position:relative;width:100%;aspect-ratio:4/3;max-height:72vh;background:var(--film);border-radius:10px;overflow:hidden;
+    box-shadow:0 0 0 1px #1c2a3a,0 30px 80px -34px #000;user-select:none;touch-action:none;margin:0 auto}
+  .stage.ready{cursor:crosshair}
+  .imglayer{position:absolute;inset:0;transition:filter .12s}
+  .imglayer img,.imglayer svg{width:100%;height:100%;object-fit:contain;display:block}
+  .imglayer.empty{display:none}
+
+  .drop{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
+    text-align:center;color:var(--muted);cursor:pointer;background:repeating-linear-gradient(0deg,#070b11 0 2px,#06090f 2px 4px)}
+  .drop.hide{display:none}
+  .drop.drag{background:#06181a;color:var(--accent)}
+  .drop .ic{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;border:1.5px dashed #2a3a4d;color:#42566b;margin-bottom:6px;transition:.2s}
+  .drop.drag .ic{border-color:var(--accent);color:var(--accent);transform:scale(1.05)}
+  .drop .ic svg{width:26px;height:26px}
+  .drop .big{font-family:var(--disp);font-size:17px;font-weight:600;color:var(--txt)}
+  .drop .small{font-size:12.5px;padding:0 20px}
+  .drop .demo{margin-top:10px;font-family:var(--mono);font-size:11.5px;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+
+  .heat{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;mix-blend-mode:screen}
+  .heat.show{opacity:.75}
+  .grid-fx{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;
+    background-image:linear-gradient(#35e5d010 1px,transparent 1px),linear-gradient(90deg,#35e5d010 1px,transparent 1px);background-size:28px 28px}
+  .stage.scanning .grid-fx{opacity:1}
+  .sweep{position:absolute;left:0;right:0;height:110px;pointer-events:none;opacity:0;
+    background:linear-gradient(180deg,transparent,#35e5d022 60%,#35e5d0cc);border-bottom:1.5px solid var(--accent);box-shadow:0 0 26px 4px #35e5d055}
+  .stage.scanning .sweep{opacity:1;animation:sweep 1.4s cubic-bezier(.4,0,.2,1) infinite}
+  @keyframes sweep{0%{top:-110px}100%{top:100%}}
+
+  .region{position:absolute;opacity:0;transition:opacity .25s;pointer-events:none}
+  .region.show{opacity:1}
+  .rbox{position:absolute;inset:0;border:2.5px solid var(--red);border-radius:2px;
+    box-shadow:0 0 0 1px #00000088,0 0 22px -2px var(--red);outline:9999px solid rgba(4,6,10,0);transition:outline-color .4s}
+  .rbox.circle{border-radius:50%}
+  .region.focus .rbox{outline-color:rgba(4,6,10,.74)}
+  .region.locked .rbox{animation:rpulse 2s ease-in-out infinite}
+  @keyframes rpulse{0%,100%{box-shadow:0 0 0 1px #00000088,0 0 13px -2px var(--red)}50%{box-shadow:0 0 0 1px #00000088,0 0 26px 2px var(--red)}}
+  .rtick{position:absolute;width:10px;height:10px;border:2.5px solid var(--red)}
+  .rtick.tl{top:-2.5px;left:-2.5px;border-right:0;border-bottom:0}.rtick.tr{top:-2.5px;right:-2.5px;border-left:0;border-bottom:0}
+  .rtick.bl{bottom:-2.5px;left:-2.5px;border-right:0;border-top:0}.rtick.br{bottom:-2.5px;right:-2.5px;border-left:0;border-top:0}
+  .rlabel{position:absolute;top:-25px;left:0;font-family:var(--mono);font-size:11.5px;font-weight:600;color:#fff;
+    background:var(--red-deep);padding:2px 9px;border-radius:4px;white-space:nowrap;box-shadow:0 4px 12px -4px #000}
+  .rconf{position:absolute;bottom:-23px;right:0;font-family:var(--mono);font-size:10.5px;color:var(--red);
+    background:var(--red-soft);border:1px solid var(--red-bd);padding:1px 8px;border-radius:4px}
+
+  .hud{position:absolute;left:12px;bottom:11px;font-family:var(--mono);font-size:10px;color:#35e5d0aa;line-height:1.7;pointer-events:none;text-shadow:0 1px 3px #000;z-index:6}
+  .hud .k{color:#4a5d70}
+  .hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:11.5px;color:var(--txt);
+    background:#0a1019cc;border:1px solid var(--line);padding:6px 14px;border-radius:8px;backdrop-filter:blur(4px);
+    opacity:0;transition:.3s;pointer-events:none;white-space:nowrap;z-index:7;max-width:90%}
+  .hint.show{opacity:1}
+
+  .actbar{display:flex;gap:11px;margin:16px 0 4px}
+  .btn{border:0;border-radius:11px;padding:14px 18px;font-family:var(--body);font-size:14px;font-weight:600;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:9px;transition:.16s}
+  .btn svg{width:17px;height:17px}
+  .btn.primary{flex:1;background:linear-gradient(150deg,var(--accent),#15a094);color:#042220;box-shadow:0 10px 26px -12px var(--accent)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.primary:disabled{background:#16222e;color:#4a5d70;box-shadow:none;cursor:not-allowed}
+  .btn.sec{background:#101a26;color:var(--txt-2);border:1px solid var(--line)}
+  .btn.sec:hover{color:var(--txt);border-color:var(--accent-dim)}
+
+  .results{margin-top:30px;opacity:0;transform:translateY(10px);transition:.45s;pointer-events:none}
+  .results.show{opacity:1;transform:none;pointer-events:auto}
+  .res-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .res-head h2{font-family:var(--disp);font-size:18px;font-weight:600;margin:0;display:flex;align-items:center;gap:9px}
+  .res-head h2 .ic{color:var(--red)}
+  .res-head .ts{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+  .card{background:linear-gradient(180deg,var(--panel),#0a0f17);border:1px solid var(--line-soft);border-radius:16px;overflow:hidden}
+  .verdict{display:flex;gap:22px;align-items:center;padding:22px 24px;border-bottom:1px solid var(--line-soft)}
+  .ring{position:relative;width:120px;height:120px;flex:none}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .val{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+  .ring .val b{font-family:var(--disp);font-size:30px;font-weight:700;line-height:1}
+  .ring .val small{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;display:block;margin-top:4px}
+  .v-text{min-width:0;flex:1}
+  .v-text .lab{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
+  .v-text .cls{font-family:var(--disp);font-size:26px;font-weight:700;margin:5px 0 2px;line-height:1.15;color:var(--red)}
+  .v-text .en{font-family:var(--mono);font-size:13px;color:var(--txt-2)}
+  .sev{display:inline-flex;align-items:center;gap:7px;margin-top:12px;padding:6px 13px;border-radius:999px;font-size:13px;font-weight:600;border:1px solid}
+  .sev .d{width:8px;height:8px;border-radius:50%}
+
+  .res-grid{display:grid;grid-template-columns:1fr 1fr}
+  @media(max-width:760px){.res-grid{grid-template-columns:1fr}.verdict{flex-direction:column;text-align:center}}
+  .block{padding:20px 24px;border-bottom:1px solid var(--line-soft);border-right:1px solid var(--line-soft)}
+  .res-grid .block:nth-child(2n){border-right:0}
+  .block h3{margin:0 0 14px;font-family:var(--mono);font-size:11px;letter-spacing:1.6px;color:var(--muted);text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .block h3::after{content:"";flex:1;height:1px;background:var(--line-soft)}
+
+  .prob{margin-bottom:12px}.prob:last-child{margin-bottom:0}
+  .prob-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;gap:8px}
+  .prob-top .nm{color:var(--txt);font-weight:500}
+  .prob-top .pc{font-family:var(--mono);color:var(--txt-2);font-size:12px;flex:none}
+  .bar{height:7px;background:#0a121b;border-radius:6px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:6px;width:0;transition:width .9s cubic-bezier(.2,.7,.2,1);background:linear-gradient(90deg,#2c8079,var(--accent))}
+  .prob.lead .nm{color:var(--red)}.prob.lead i{background:linear-gradient(90deg,var(--red-deep),var(--red))}
+
+  .mgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .stat{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:11px;padding:12px 13px}
+  .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase}
+  .stat .v{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--txt);margin-top:5px}
+  .stat .v small{font-size:11px;color:var(--txt-2);font-weight:400}
+
+  .finding{font-size:13.5px;line-height:1.75;color:var(--txt-2);margin:0}
+  .finding b{color:var(--txt);font-weight:600}
+  .reco{margin:0;padding:0;list-style:none}
+  .reco li{position:relative;padding:8px 0 8px 22px;font-size:13px;line-height:1.55;color:var(--txt-2);border-top:1px solid var(--line-soft)}
+  .reco li:first-child{border-top:0}
+  .reco li::before{content:"";position:absolute;left:3px;top:14px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+
+  .res-foot{padding:18px 24px}
+  .disclaimer{margin:14px 0 0;font-size:11.5px;line-height:1.6;color:var(--muted);
+    background:#0c121b;border:1px solid var(--line-soft);border-left:3px solid var(--mod);border-radius:9px;padding:12px 14px}
+  .disclaimer b{color:var(--txt-2)}
+  .hidden{display:none!important}
+  #fileInput{display:none}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#042220" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3a2 2 0 0 0-2 2 2 2 0 0 0-1 3l2 2v4l-2 2a2 2 0 0 0 1 3 2 2 0 0 0 2 2 2 2 0 0 0 3-1 2 2 0 0 0 3 1 2 2 0 0 0 2-2 2 2 0 0 0 1-3l-2-2v-4l2-2a2 2 0 0 0-1-3 2 2 0 0 0-2-2 2 2 0 0 0-3 1 2 2 0 0 0-3-1Z"/></svg></span>
+    <b>Ossi<span>Scan</span><small>fracture intelligence</small></b>
+  </div>
+  <div class="spacer"></div>
+  <div class="lang" id="lang">
+    <button data-lang="zh" class="on">中</button>
+    <button data-lang="en">EN</button>
+    <button data-lang="ko">한</button>
+  </div>
+  <div class="pill"><span class="dot idle" id="statusDot"></span><span id="statusTxt">等待上传</span></div>
+</header>
+
+<div class="wrap">
+  <p class="step-lead" data-i18n="lead">步骤 01 · 自动检测</p>
+  <h1 class="h-title" data-i18n="title">上传 X 光影像，自动框选骨折部位</h1>
+  <p class="h-sub" data-i18n-html="subtitle"></p>
+
+  <div class="toolbar">
+    <div class="tgroup">
+      <button class="tbtn on" id="modeBox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1"/></svg><span data-i18n="tb_box">方框</span></button>
+      <button class="tbtn" id="modeCircle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg><span data-i18n="tb_circle">圆形</span></button>
+    </div>
+    <button class="tbtn ghost" id="heatBtn" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12c2-5 4-7 6-2s4 9 6 2 3-4 6 0"/></svg><span data-i18n="tb_heat">热力图</span></button>
+    <div class="slider"><span data-i18n="tb_bright">亮度</span><input type="range" id="brightness" min="60" max="160" value="100"><b id="brVal">100%</b></div>
+    <div class="slider"><span data-i18n="tb_contrast">对比</span><input type="range" id="contrast" min="70" max="220" value="110"><b id="ctVal">110%</b></div>
+    <div class="spacer"></div>
+    <button class="tbtn ghost" id="uploadBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg><span data-i18n="tb_upload">上传影像</span></button>
+    <input type="file" id="fileInput" accept="image/*">
+    <button class="tbtn ghost" id="clearBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg><span data-i18n="tb_reset">重置</span></button>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="imglayer empty" id="imgLayer"></div>
+    <div class="drop" id="drop">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span>
+      <span class="big" data-i18n="drop_big">点击或拖拽上传 X 光影像</span>
+      <span class="small" data-i18n="drop_small">支持 JPG / PNG · 上传后自动框选骨折部位</span>
+      <span class="demo" id="loadDemo" data-i18n="drop_demo">没有图片？载入示例影像</span>
+    </div>
+    <svg class="heat" id="heatLayer" viewBox="0 0 600 800" preserveAspectRatio="none">
+      <defs><radialGradient id="cam" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#ff2d2d" stop-opacity="1"/><stop offset="30%" stop-color="#ff8a00" stop-opacity=".9"/>
+        <stop offset="58%" stop-color="#ffe600" stop-opacity=".5"/><stop offset="80%" stop-color="#2bff6a" stop-opacity=".25"/>
+        <stop offset="100%" stop-color="#0044ff" stop-opacity="0"/></radialGradient></defs>
+      <ellipse id="camBlob" cx="300" cy="400" rx="120" ry="100" fill="url(#cam)"/>
+    </svg>
+    <div class="grid-fx"></div>
+    <div class="sweep"></div>
+    <div class="region" id="region">
+      <div class="rbox" id="rbox"><span class="rtick tl"></span><span class="rtick tr"></span><span class="rtick bl"></span><span class="rtick br"></span></div>
+      <span class="rlabel hidden" id="rlabel"></span>
+      <span class="rconf hidden" id="rconf"></span>
+    </div>
+    <div class="hud hidden" id="hud"><span class="k">ROI</span> <span id="hudRoi">—</span></div>
+    <div class="hint" id="hint"></div>
+  </div>
+
+  <div class="actbar">
+    <button class="btn primary" id="scanBtn" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M3 12h18"/></svg>
+      <span id="scanLbl" data-i18n="btn_auto">自动检测并分析</span>
+    </button>
+  </div>
+
+  <section class="results" id="results">
+    <div class="res-head">
+      <h2><span class="ic">▣</span> <span data-i18n="res_title">分析结果</span></h2>
+      <span class="ts" id="reportTs">—</span>
+    </div>
+    <div class="card">
+      <div class="verdict">
+        <div class="ring">
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="51" fill="none" stroke="#101a26" stroke-width="9"/>
+            <circle id="ringArc" cx="60" cy="60" r="51" fill="none" stroke="var(--red)" stroke-width="9" stroke-linecap="round" stroke-dasharray="320" stroke-dashoffset="320"/>
+          </svg>
+          <div class="val"><b id="confBig">0%</b><small data-i18n="conf_lab">置信度</small></div>
+        </div>
+        <div class="v-text">
+          <div class="lab" data-i18n="verdict_lab">检测区诊断</div>
+          <div class="cls" id="clsName">—</div>
+          <div class="en" id="clsEn">—</div>
+          <span class="sev" id="sevBadge"><span class="d"></span><span id="sevTxt">—</span></span>
+        </div>
+      </div>
+      <div class="res-grid">
+        <div class="block"><h3 data-i18n="prob_title">类别概率分布</h3><div id="probList"></div></div>
+        <div class="block"><h3 data-i18n="measure_title">区域测量</h3>
+          <div class="mgrid">
+            <div class="stat"><div class="k" data-i18n="m_coord">检测坐标</div><div class="v" id="mCoord">—</div></div>
+            <div class="stat"><div class="k" data-i18n="m_size">检测尺寸</div><div class="v" id="mSize">—</div></div>
+            <div class="stat"><div class="k" data-i18n="m_shape">标注形状</div><div class="v" id="mShape">—</div></div>
+            <div class="stat"><div class="k" data-i18n="m_range">分析范围</div><div class="v" id="mRange">—</div></div>
+          </div>
+        </div>
+        <div class="block"><h3 data-i18n="finding_title">影像所见</h3><p class="finding" id="findingTxt">—</p></div>
+        <div class="block"><h3 data-i18n="reco_title">处置建议</h3><ul class="reco" id="recoList"></ul></div>
+      </div>
+      <div class="res-foot">
+        <button class="btn sec" id="reportBtn" style="width:100%">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span data-i18n="btn_report">生成报告 / 导出 PDF</span>
+        </button>
+      </div>
+    </div>
+    <p class="disclaimer" data-i18n-html="disclaimer"></p>
+  </section>
+</div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s);
+  const stage=$('#stage'), img=$('#imgLayer'), drop=$('#drop'), region=$('#region');
+
+  /* ---------------- i18n ---------------- */
+  const CLS={
+    transverse:{zh:'横向骨折',en:'Transverse fracture',ko:'횡골절',sev:'high'},
+    oblique:{zh:'斜向骨折',en:'Oblique fracture',ko:'사선골절',sev:'high'},
+    spiral:{zh:'螺旋骨折',en:'Spiral fracture',ko:'나선골절',sev:'high'},
+    comminuted:{zh:'粉碎性骨折',en:'Comminuted fracture',ko:'분쇄골절',sev:'high'},
+    impacted:{zh:'嵌插骨折',en:'Impacted fracture',ko:'감입골절',sev:'mod'},
+    avulsion:{zh:'撕脱骨折',en:'Avulsion fracture',ko:'견열골절',sev:'mod'},
+    greenstick:{zh:'青枝骨折',en:'Greenstick fracture',ko:'약목골절',sev:'mod'},
+    stress:{zh:'应力骨折',en:'Stress fracture',ko:'피로골절',sev:'low'},
+    pathologic:{zh:'病理性骨折',en:'Pathologic fracture',ko:'병적골절',sev:'high'},
+  };
+  const SEVT={
+    high:{zh:'高 · 需紧急处理',en:'High · urgent care',ko:'높음 · 응급 처치'},
+    mod:{zh:'中 · 建议进一步评估',en:'Moderate · further eval',ko:'중간 · 추가 평가'},
+    low:{zh:'低 · 随访观察',en:'Low · follow-up',ko:'낮음 · 경과 관찰'},
+  };
+  const SEVC={high:{c:'var(--high)',bd:'var(--red-bd)',bg:'var(--red-soft)'},
+    mod:{c:'var(--mod)',bd:'#5a4612',bg:'#1a1405'},low:{c:'var(--low)',bd:'#1f4a2b',bg:'#0a1a0f'}};
+  const FIND={
+    transverse:{zh:'框选区域内骨干见一条<b>横行透亮线</b>，垂直于骨长轴贯通骨皮质，断端对位尚可。',en:'Within the box, a <b>transverse radiolucent line</b> crosses the shaft perpendicular to the long axis, traversing the cortex; alignment is fair.',ko:'박스 내 골간에 장축에 수직인 <b>가로 방사선 투과선</b>이 피질골을 가로지르며, 정렬은 양호합니다.'},
+    oblique:{zh:'框内见与骨长轴呈<b>斜行（约 30–45°）</b>的骨折线，断端略有错位，软组织肿胀。',en:'An <b>oblique line (~30–45°)</b> to the long axis with slight offset and soft-tissue swelling.',ko:'장축에 대해 <b>사선(약 30–45°) 골절선</b>과 약간의 전위, 연부조직 부종이 있습니다.'},
+    spiral:{zh:'框内骨干见<b>螺旋形骨折线</b>环绕骨皮质，提示旋转暴力机制。',en:'A <b>spiral fracture line</b> winds around the cortex, suggesting a rotational mechanism.',ko:'피질골을 감싸는 <b>나선형 골절선</b>이 보여 회전성 손상 기전을 시사합니다.'},
+    comminuted:{zh:'框选区见<b>多发碎骨片</b>，对位关系紊乱，建议 CT 三维重建。',en:'<b>Multiple fragments</b> with disrupted alignment; CT 3D reconstruction advised.',ko:'<b>다수의 골편</b>과 정렬 불량이 있어 CT 3차원 재구성이 권장됩니다.'},
+    impacted:{zh:'框内断端相互<b>嵌插重叠</b>，骨长度轻度缩短。',en:'Fragments are <b>impacted/overlapping</b> with mild shortening.',ko:'골편이 <b>감입·중첩</b>되어 경미한 단축이 있습니다.'},
+    greenstick:{zh:'框内一侧骨皮质<b>皱褶不全断裂</b>、对侧连续，符合青枝骨折，多见于儿童。',en:'One cortex shows an <b>incomplete buckling break</b>, the opposite intact — greenstick, common in children.',ko:'한쪽 피질골은 <b>불완전 좌굴 골절</b>, 반대쪽은 연속적입니다 — 소아에서 흔합니다.'},
+    stress:{zh:'框选区骨皮质见<b>细微骨膜反应</b>及不全裂隙，考虑应力性改变。',en:'Local <b>periosteal reaction</b> and an incomplete lucency suggest a stress change.',ko:'국소 <b>골막 반응</b>과 불완전 투과선으로 피로성 변화가 고려됩니다.'},
+    pathologic:{zh:'框内骨折区伴<b>局限性骨质破坏 / 溶骨改变</b>，建议排查潜在病灶。',en:'Fracture with <b>focal bone destruction / osteolysis</b>; exclude an underlying lesion.',ko:'골절부에 <b>국소 골 파괴 / 용골성 변화</b>가 동반되어 기저 병변 배제가 필요합니다.'},
+    avulsion:{zh:'框内肌腱 / 韧带附着处见<b>小骨片撕脱</b>。',en:'A <b>small avulsed fragment</b> at a tendon/ligament insertion.',ko:'힘줄/인대 부착부에서 <b>작은 견열 골편</b>이 분리되어 있습니다.'},
+  };
+  const RECO={
+    high:{zh:['立即制动并避免负重，按需临时外固定','急诊骨科会诊，评估是否需复位或手术','加摄侧位 / 斜位或 CT 明确移位'],
+      en:['Immobilize and avoid weight-bearing; splint as needed','Emergency orthopedic consult for reduction/surgery','Add lateral/oblique views or CT for displacement'],
+      ko:['고정하고 체중 부하 금지, 필요시 임시 부목','정복/수술 평가를 위한 응급 정형외과 협진','전위 확인을 위해 측면/사면 촬영 또는 CT']},
+    mod:{zh:['局部制动，48 小时内复诊评估','补充对侧对照位或 CT 进一步确认','观察软组织肿胀与神经血管状况'],
+      en:['Local immobilization; re-evaluate within 48 h','Add contralateral view or CT to confirm','Monitor swelling and neurovascular status'],
+      ko:['국소 고정 후 48시간 내 재평가','반대측 비교 촬영 또는 CT 추가 확인','부종 및 신경혈관 상태 관찰']},
+    low:{zh:['减少诱因性负荷，规律随访','2–4 周后复查观察愈合 / 进展','必要时行 MRI 评估早期应力改变'],
+      en:['Reduce causative loading; regular follow-up','Re-image in 2–4 weeks to track healing','MRI if needed for early stress change'],
+      ko:['유발 부하 감소 및 정기 경과 관찰','2–4주 후 재촬영으로 치유 확인','필요시 조기 피로 변화 평가 MRI']},
+  };
+  const T={
+    zh:{lead:'步骤 01 · 自动检测',title:'上传 X 光影像，自动框选骨折部位',
+      subtitle:'上传你的骨折影像，系统会自动用<strong style="color:var(--red)">红色方框</strong>定位骨折部位并分析，结果显示在下方；也可手动拖拽微调红框。',
+      tb_box:'方框',tb_circle:'圆形',tb_heat:'热力图',tb_bright:'亮度',tb_contrast:'对比',tb_upload:'上传影像',tb_reset:'重置',
+      drop_big:'点击或拖拽上传 X 光影像',drop_small:'支持 JPG / PNG · 上传后自动框选骨折部位',drop_demo:'没有图片？载入示例影像',
+      btn_auto:'自动检测并分析',btn_redetect:'重新检测',btn_working:'检测分析中 ···',btn_report:'生成报告 / 导出 PDF',
+      res_title:'分析结果',verdict_lab:'检测区诊断 · detected region',conf_lab:'置信度',
+      prob_title:'类别概率分布',measure_title:'区域测量',finding_title:'影像所见',reco_title:'处置建议',
+      m_coord:'检测坐标',m_size:'检测尺寸',m_shape:'标注形状',m_range:'分析范围',m_range_val:'仅框内',shape_rect:'红色矩形',shape_circle:'红色圆形',
+      disclaimer:'本工具为科研与教学用途的 AI 辅助识别系统，输出仅供参考，<b>不构成临床诊断</b>。最终判读须由具备资质的影像科或骨科医师完成。',
+      pill_wait:'等待上传',pill_detecting:'自动检测中…',pill_analyzing:'分析中…',pill_done:'分析完成',pill_ready:'已就绪',
+      hint_detecting:'正在自动定位骨折部位…',hint_adjust:'可拖拽红框手动微调',hint_small:'框选区域太小，请重新拖拽',hint_fail:'未能自动定位，请手动拖拽框选',
+      rep_title:'骨折智能识别报告',rep_scope:'分析范围：自动检测区域',rep_dx:'检测区诊断',rep_conf:'置信度',rep_prob:'类别概率',rep_find:'影像所见',rep_reco:'处置建议',rep_print:'打印 / 另存为 PDF',rep_note:'本报告由 AI 辅助系统生成，仅供科研与教学参考，不构成临床诊断。'},
+    en:{lead:'STEP 01 · Auto-detect',title:'Upload an X-ray to auto-detect the fracture',
+      subtitle:'Upload your fracture image — the system automatically locates the fracture with a <strong style="color:var(--red)">red box</strong> and analyzes it. Results appear below; you can also drag the box to fine-tune.',
+      tb_box:'Box',tb_circle:'Circle',tb_heat:'Heatmap',tb_bright:'Bright',tb_contrast:'Contrast',tb_upload:'Upload',tb_reset:'Reset',
+      drop_big:'Click or drag to upload an X-ray',drop_small:'JPG / PNG · fracture auto-detected after upload',drop_demo:'No image? Load a sample',
+      btn_auto:'Auto-detect & Analyze',btn_redetect:'Re-detect',btn_working:'Working ···',btn_report:'Generate report / Export PDF',
+      res_title:'Analysis result',verdict_lab:'Detected-region diagnosis',conf_lab:'Confidence',
+      prob_title:'Class probabilities',measure_title:'Region metrics',finding_title:'Findings',reco_title:'Recommendations',
+      m_coord:'Coordinates',m_size:'Size',m_shape:'Marker',m_range:'Scope',m_range_val:'Box only',shape_rect:'Red box',shape_circle:'Red circle',
+      disclaimer:'This is an AI-assisted tool for research and education only. Output is for reference and <b>not a clinical diagnosis</b>. Final interpretation must be made by a qualified radiologist or orthopedic physician.',
+      pill_wait:'Awaiting upload',pill_detecting:'Auto-detecting…',pill_analyzing:'Analyzing…',pill_done:'Done',pill_ready:'Ready',
+      hint_detecting:'Locating the fracture…',hint_adjust:'Drag the red box to adjust',hint_small:'Selection too small, please drag again',hint_fail:'Auto-detect failed — please draw a box manually',
+      rep_title:'Fracture AI Report',rep_scope:'Scope: auto-detected region',rep_dx:'Detected-region diagnosis',rep_conf:'Confidence',rep_prob:'Class probabilities',rep_find:'Findings',rep_reco:'Recommendations',rep_print:'Print / Save as PDF',rep_note:'This AI-generated report is for research and education only and is not a clinical diagnosis.'},
+    ko:{lead:'단계 01 · 자동 검출',title:'X-ray를 업로드하면 골절 부위를 자동 검출',
+      subtitle:'골절 영상을 업로드하면 시스템이 <strong style="color:var(--red)">빨간 박스</strong>로 골절 부위를 자동 검출·분석합니다. 결과는 아래에 표시되며, 박스를 드래그해 미세 조정할 수 있습니다.',
+      tb_box:'박스',tb_circle:'원형',tb_heat:'히트맵',tb_bright:'밝기',tb_contrast:'대비',tb_upload:'업로드',tb_reset:'초기화',
+      drop_big:'클릭 또는 드래그하여 X-ray 업로드',drop_small:'JPG / PNG · 업로드 후 골절 자동 검출',drop_demo:'이미지가 없나요? 샘플 불러오기',
+      btn_auto:'자동 검출 및 분석',btn_redetect:'다시 검출',btn_working:'처리 중 ···',btn_report:'보고서 생성 / PDF 내보내기',
+      res_title:'분석 결과',verdict_lab:'검출 영역 진단',conf_lab:'신뢰도',
+      prob_title:'클래스 확률 분포',measure_title:'영역 측정',finding_title:'영상 소견',reco_title:'처치 권고',
+      m_coord:'좌표',m_size:'크기',m_shape:'표시',m_range:'분석 범위',m_range_val:'박스 내부만',shape_rect:'빨간 박스',shape_circle:'빨간 원',
+      disclaimer:'본 도구는 연구·교육용 AI 보조 시스템으로, 결과는 참고용이며 <b>임상 진단이 아닙니다</b>. 최종 판독은 자격을 갖춘 영상의학과 또는 정형외과 의사가 수행해야 합니다.',
+      pill_wait:'업로드 대기',pill_detecting:'자동 검출 중…',pill_analyzing:'분석 중…',pill_done:'분석 완료',pill_ready:'준비됨',
+      hint_detecting:'골절 부위를 찾는 중…',hint_adjust:'빨간 박스를 드래그해 조정',hint_small:'선택 영역이 너무 작습니다. 다시 드래그하세요',hint_fail:'자동 검출 실패 — 수동으로 박스를 그려주세요',
+      rep_title:'골절 지능 인식 보고서',rep_scope:'분석 범위: 자동 검출 영역',rep_dx:'검출 영역 진단',rep_conf:'신뢰도',rep_prob:'클래스 확률',rep_find:'영상 소견',rep_reco:'처치 권고',rep_print:'인쇄 / PDF 저장',rep_note:'본 보고서는 연구·교육용 AI 보조 시스템이 생성한 것으로 임상 진단이 아닙니다.'},
+  };
+
+  let lang='zh';
+  function tr(k){return (T[lang]&&T[lang][k])||k;}
+  function applyLang(){
+    document.documentElement.lang = lang==='zh'?'zh-CN':lang;
+    document.querySelectorAll('[data-i18n]').forEach(el=>{el.textContent=tr(el.dataset.i18n);});
+    document.querySelectorAll('[data-i18n-html]').forEach(el=>{el.innerHTML=tr(el.dataset.i18nHtml);});
+    setStatusKey(statusKey,statusBusy);
+    $('#scanLbl').textContent = analyzed?tr('btn_redetect'):tr('btn_auto');
+    if(analyzed) renderResults();
+  }
+  $('#lang').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    lang=b.dataset.lang;
+    $('#lang').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    applyLang();
+  });
+
+  /* ---------------- state ---------------- */
+  let mode='box', heat=false;
+  let roi=null, imgNW=600, imgNH=800;
+  let hasImg=false, analyzed=false, lastResult=null;
+  let drawing=false, drawStart=null, isDemo=false, scanning=false;
+  let statusKey='pill_wait', statusBusy=false;
+  const DEMO_FRAC={fx:0.345,fy:0.555,fw:0.27,fh:0.155};
+
+  /* ---------------- shape / heatmap / sliders ---------------- */
+  $('#modeBox').onclick=()=>setMode('box');
+  $('#modeCircle').onclick=()=>setMode('circle');
+  function setMode(m){mode=m;$('#modeBox').classList.toggle('on',m==='box');$('#modeCircle').classList.toggle('on',m==='circle');
+    $('#rbox').classList.toggle('circle',m==='circle'); if(analyzed) renderResults();}
+  $('#heatBtn').onclick=function(){if(this.disabled)return;heat=!heat;this.classList.toggle('on',heat);$('#heatLayer').classList.toggle('show',heat);};
+  const br=$('#brightness'), ct=$('#contrast');
+  function applyImg(){img.style.filter=`brightness(${br.value}%) contrast(${ct.value}%)`;$('#brVal').textContent=br.value+'%';$('#ctVal').textContent=ct.value+'%';}
+  br.oninput=applyImg; ct.oninput=applyImg;
+
+  /* ---------------- upload ---------------- */
+  $('#uploadBtn').onclick=()=>$('#fileInput').click();
+  drop.onclick=()=>$('#fileInput').click();
+  $('#fileInput').onchange=e=>{const f=e.target.files[0];if(f)loadImage(URL.createObjectURL(f),false);};
+  ['dragenter','dragover'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+  stage.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('image/'))loadImage(URL.createObjectURL(f),false);});
+  $('#loadDemo').onclick=e=>{e.stopPropagation();loadImage(null,true);};
+
+  function loadImage(src,demo){
+    if(demo){imgNW=600;imgNH=800;img.innerHTML=DEMO_SVG;finishLoad(true);return;}
+    const im=new Image();
+    im.onload=()=>{imgNW=im.naturalWidth||4;imgNH=im.naturalHeight||3;img.innerHTML='';im.style.cssText='width:100%;height:100%;object-fit:contain;display:block';img.appendChild(im);finishLoad(false);};
+    im.onerror=()=>alert('Image load failed');
+    im.src=src;
+  }
+  function finishLoad(demo){
+    img.classList.remove('empty');drop.classList.add('hide');
+    hasImg=true;isDemo=demo;resetAnalysis(true);
+    $('#heatBtn').disabled=false;
+    autoRun();
+  }
+
+  /* ---------------- auto-detect (image-based heuristic) ---------------- */
+  function autoDetect(){
+    try{
+      const el=img.querySelector('img'); if(!el||!el.naturalWidth) return null;
+      const nw=el.naturalWidth, nh=el.naturalHeight;
+      const cw=140, ch=Math.max(40,Math.round(140*nh/nw));
+      const c=document.createElement('canvas'); c.width=cw;c.height=ch;
+      const x=c.getContext('2d',{willReadFrequently:true}); x.drawImage(el,0,0,cw,ch);
+      const d=x.getImageData(0,0,cw,ch).data;
+      const gray=new Float32Array(cw*ch); let mean=0,mx=0;
+      for(let i=0;i<cw*ch;i++){const v=0.299*d[i*4]+0.587*d[i*4+1]+0.114*d[i*4+2];gray[i]=v;mean+=v;if(v>mx)mx=v;}
+      mean/=cw*ch;
+      const grad=new Float32Array(cw*ch);
+      for(let y=1;y<ch-1;y++)for(let xx=1;xx<cw-1;xx++){const i=y*cw+xx;
+        grad[i]=Math.abs(gray[i+1]-gray[i-1])+Math.abs(gray[i+cw]-gray[i-cw]);}
+      const thr=Math.max(mean*0.7,mx*0.35);
+      const winW=Math.max(8,Math.round(cw*0.22)), winH=Math.max(8,Math.round(ch*0.22));
+      const step=Math.max(2,Math.round(winW/4));
+      const mx0=Math.round(cw*0.04), my0=Math.round(ch*0.04);
+      let best=-1,bx=mx0,by=my0;
+      for(let y=my0;y<=ch-winH-my0;y+=step)for(let xx=mx0;xx<=cw-winW-mx0;xx+=step){
+        let s=0,bright=0,n=0;
+        for(let yy=y;yy<y+winH;yy+=2)for(let zz=xx;zz<xx+winW;zz+=2){const i=yy*cw+zz;s+=grad[i]*(gray[i]>thr?1:0.15);bright+=gray[i];n++;}
+        if(bright/n<mean*0.55)continue;
+        if(s>best){best=s;bx=xx;by=y;}
+      }
+      if(best<=0) return null;
+      let fx=bx/cw, fy=by/ch, fw=winW/cw, fh=winH/ch;
+      const ex=fw*0.12, ey=fh*0.12;
+      fx=Math.max(0,fx-ex);fy=Math.max(0,fy-ey);fw=Math.min(1-fx,fw+2*ex);fh=Math.min(1-fy,fh+2*ey);
+      return {fx,fy,fw,fh};
+    }catch(e){return null;}
+  }
+  function fracToStage(f){
+    const sw=stage.clientWidth, sh=stage.clientHeight, ar=imgNW/imgNH;
+    let dw,dh; if(sw/sh>ar){dh=sh;dw=sh*ar;}else{dw=sw;dh=sw/ar;}
+    const ox=(sw-dw)/2, oy=(sh-dh)/2;
+    return {x:(ox+f.fx*dw)/sw*100, y:(oy+f.fy*dh)/sh*100, w:f.fw*dw/sw*100, h:f.fh*dh/sh*100};
+  }
+
+  /* ---------------- manual draw (optional fine-tune) ---------------- */
+  function evtPct(e){const r=stage.getBoundingClientRect();
+    const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left, cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+    return {x:Math.max(0,Math.min(100,cx/r.width*100)), y:Math.max(0,Math.min(100,cy/r.height*100))};}
+  stage.addEventListener('pointerdown',e=>{
+    if(!hasImg||scanning)return;
+    drawing=true;drawStart=evtPct(e);
+    region.classList.remove('focus','locked');
+    $('#rlabel').classList.add('hidden');$('#rconf').classList.add('hidden');
+    region.classList.add('show');stage.setPointerCapture(e.pointerId);hideHint();
+  });
+  stage.addEventListener('pointermove',e=>{if(!drawing)return;const p=evtPct(e);
+    roi={x:Math.min(drawStart.x,p.x),y:Math.min(drawStart.y,p.y),w:Math.abs(p.x-drawStart.x),h:Math.abs(p.y-drawStart.y)};place();});
+  stage.addEventListener('pointerup',()=>{
+    if(!drawing)return;drawing=false;
+    if(!roi||roi.w<3||roi.h<3){roi=null;region.classList.remove('show');showHint('hint_small');return;}
+    centerBlob();
+    runScan(false);   // analyze the manually adjusted box
+  });
+  function place(){region.style.left=roi.x+'%';region.style.top=roi.y+'%';region.style.width=roi.w+'%';region.style.height=roi.h+'%';
+    $('#hudRoi').textContent=`x${Math.round(roi.x)} y${Math.round(roi.y)} · ${Math.round(roi.w)}×${Math.round(roi.h)} %`;}
+  function centerBlob(){const cb=$('#camBlob');
+    cb.setAttribute('cx',(roi.x+roi.w/2)/100*600);cb.setAttribute('cy',(roi.y+roi.h/2)/100*800);
+    cb.setAttribute('rx',Math.max(45,roi.w/100*600*0.6));cb.setAttribute('ry',Math.max(40,roi.h/100*800*0.6));}
+
+  /* ---------------- status / hint ---------------- */
+  function setStatusKey(k,busy){statusKey=k;statusBusy=busy;$('#statusTxt').textContent=tr(k);
+    const d=$('#statusDot');d.className='dot'+(busy?' busy':(hasImg?'':' idle'));}
+  let hintT;
+  function showHint(k){const h=$('#hint');clearTimeout(hintT);h.textContent=tr(k);h.classList.add('show');hintT=setTimeout(()=>h.classList.remove('show'),3400);}
+  function hideHint(){clearTimeout(hintT);$('#hint').classList.remove('show');}
+
+  /* ---------------- scan flow ---------------- */
+  $('#scanBtn').onclick=()=>runScan(true);
+  function runScan(detect){
+    if(!hasImg||scanning)return;
+    scanning=true;
+    stage.classList.add('scanning');
+    region.classList.remove('locked');
+    $('#rlabel').classList.add('hidden');$('#rconf').classList.add('hidden');
+    $('#results').classList.remove('show');
+    $('#scanBtn').disabled=true;$('#scanLbl').textContent=tr('btn_working');
+    setStatusKey('pill_detecting',true);
+    showHint('hint_detecting');
+
+    setTimeout(()=>{
+      if(detect){
+        const f = isDemo?DEMO_FRAC:autoDetect();
+        if(!f){ // fallback
+          if(isDemo){roi=fracToStage(DEMO_FRAC);} else {roi=fracToStage({fx:0.34,fy:0.36,fw:0.3,fh:0.28}); showHint('hint_fail');}
+        } else { roi=fracToStage(f); }
+        place();centerBlob();
+        $('#hud').classList.remove('hidden');
+      }
+      region.classList.add('show','focus');
+      setStatusKey('pill_analyzing',true);
+      setTimeout(()=>{
+        stage.classList.remove('scanning');
+        scanning=false;
+        showResults();
+        $('#scanBtn').disabled=false;$('#scanLbl').textContent=tr('btn_redetect');
+        setStatusKey('pill_done',false);$('#statusDot').className='dot';
+      },1000);
+    }, detect?1300:600);
+  }
+
+  function genResult(){
+    if(isDemo) return {key:'transverse',conf:94.2,probs:[['transverse',94.2],['oblique',3.1],['comminuted',1.4],['greenstick',1.3]]};
+    const keys=Object.keys(CLS), k=keys[Math.floor(Math.random()*keys.length)];
+    let conf=72+Math.random()*24;
+    const others=keys.filter(x=>x!==k).sort(()=>Math.random()-.5).slice(0,3);
+    let rem=100-conf, probs=[[k,conf]];
+    others.forEach((o,i)=>{const v=i===others.length-1?rem:rem*(0.4+Math.random()*0.3);rem-=v;probs.push([o,v]);});
+    return {key:k,conf:+conf.toFixed(1),probs:probs.map(([a,b])=>[a,+b.toFixed(1)])};
+  }
+  function showResults(){lastResult=genResult();analyzed=true;region.classList.add('show','focus','locked');renderResults();
+    $('#results').classList.add('show');$('#reportTs').textContent=new Date().toLocaleString(lang==='zh'?'zh-CN':lang==='ko'?'ko-KR':'en-US',{hour12:false}).replace(/\//g,'-');
+    $('#results').scrollIntoView({behavior:'smooth',block:'start'});}
+
+  function renderResults(){
+    if(!lastResult)return;const r=lastResult, C=CLS[r.key], sevKey=C.sev, S=SEVC[sevKey];
+    $('#rlabel').classList.remove('hidden');$('#rconf').classList.remove('hidden');
+    $('#rlabel').textContent=C[lang];$('#rconf').textContent=r.conf+'%';
+    $('#clsName').textContent=C[lang];$('#clsName').style.color=S.c;$('#clsEn').textContent=C.en;
+    const arc=$('#ringArc');arc.style.stroke=S.c;arc.style.strokeDashoffset=320*(1-r.conf/100);
+    $('#confBig').textContent=r.conf.toFixed(1)+'%';
+    const sb=$('#sevBadge');sb.style.color=S.c;sb.style.borderColor=S.bd;sb.style.background=S.bg;
+    sb.querySelector('.d').style.background=S.c;$('#sevTxt').textContent=SEVT[sevKey][lang];
+    const pl=$('#probList');pl.innerHTML='';
+    r.probs.forEach((p,i)=>{const d=document.createElement('div');d.className='prob'+(i===0?' lead':'');
+      d.innerHTML=`<div class="prob-top"><span class="nm">${CLS[p[0]][lang]}</span><span class="pc">${p[1].toFixed(1)}%</span></div><div class="bar"><i style="width:${p[1]}%"></i></div>`;
+      pl.appendChild(d);});
+    $('#mCoord').innerHTML=roi?`x ${Math.round(roi.x)} · y ${Math.round(roi.y)} <small>%</small>`:'—';
+    $('#mSize').innerHTML=roi?`${Math.round(roi.w)} × ${Math.round(roi.h)} <small>%</small>`:'—';
+    $('#mShape').textContent= mode==='box'?tr('shape_rect'):tr('shape_circle');
+    $('#mRange').textContent=tr('m_range_val');
+    $('#findingTxt').innerHTML=FIND[r.key][lang];
+    const rl=$('#recoList');rl.innerHTML='';
+    RECO[sevKey][lang].forEach(t=>{const li=document.createElement('li');li.textContent=t;rl.appendChild(li);});
+  }
+
+  /* ---------------- report ---------------- */
+  $('#reportBtn').onclick=()=>{
+    if(!analyzed)return;const r=lastResult,C=CLS[r.key],sevKey=C.sev;
+    const w=window.open('','_blank');
+    const rows=r.probs.map(p=>`<tr><td>${CLS[p[0]][lang]}</td><td>${CLS[p[0]].en}</td><td style="text-align:right">${p[1].toFixed(1)}%</td></tr>`).join('');
+    w.document.write(`<!doctype html><meta charset="utf-8"><title>OssiScan</title>
+      <style>body{font-family:'Inter','Noto Sans KR',system-ui,sans-serif;max-width:760px;margin:40px auto;color:#1a2430;padding:0 24px}
+      h1{font-size:22px;border-bottom:3px solid #e11d2a;padding-bottom:10px}.meta{color:#647;font-size:13px;margin:4px 0 24px;font-family:monospace}
+      .v{background:#fff5f5;border:1px solid #f3c2c6;border-radius:10px;padding:16px 18px;margin:18px 0}.v b{font-size:20px}
+      .tag{display:inline-block;background:#e11d2a;color:#fff;padding:2px 10px;border-radius:6px;font-size:12px}
+      table{width:100%;border-collapse:collapse;margin:10px 0}td{padding:7px 4px;border-bottom:1px solid #e6edf2;font-size:13px}
+      h3{font-size:13px;letter-spacing:1px;color:#778;text-transform:uppercase;margin-top:26px}
+      .note{font-size:11px;color:#8895a3;border-left:3px solid #fbbf24;padding:10px 12px;background:#fffdf5;margin-top:24px}@media print{button{display:none}}</style>
+      <h1>OssiScan · ${tr('rep_title')}</h1>
+      <div class="meta">${new Date().toLocaleString()} · ${tr('rep_scope')}</div>
+      <div class="v"><span class="tag">${tr('rep_dx')}</span><br><br><b>${C[lang]}</b>（${C.en}）<br>${tr('rep_conf')} ${r.conf}%<br>
+      ROI: x${Math.round(roi.x)} y${Math.round(roi.y)} · ${Math.round(roi.w)}×${Math.round(roi.h)} % (${mode==='box'?tr('shape_rect'):tr('shape_circle')})</div>
+      <h3>${tr('rep_prob')}</h3><table>${rows}</table>
+      <h3>${tr('rep_find')}</h3><p style="font-size:14px;line-height:1.7">${FIND[r.key][lang].replace(/<\/?b>/g,'')}</p>
+      <h3>${tr('rep_reco')}</h3><ul style="font-size:14px;line-height:1.8">${RECO[sevKey][lang].map(t=>'<li>'+t+'</li>').join('')}</ul>
+      <p class="note">${tr('rep_note')}</p>
+      <button onclick="print()" style="margin-top:20px;padding:10px 20px;background:#e11d2a;color:#fff;border:0;border-radius:8px;cursor:pointer">${tr('rep_print')}</button>`);
+    w.document.close();
+  };
+
+  /* ---------------- reset ---------------- */
+  $('#clearBtn').onclick=()=>{
+    img.innerHTML='';img.classList.add('empty');drop.classList.remove('hide');
+    br.value=100;ct.value=110;applyImg();
+    hasImg=false;isDemo=false;roi=null;scanning=false;
+    region.classList.remove('show','focus','locked');stage.classList.remove('scanning');
+    heat=false;$('#heatBtn').classList.remove('on');$('#heatBtn').disabled=true;$('#heatLayer').classList.remove('show');
+    $('#hud').classList.add('hidden');resetAnalysis(false);
+    setStatusKey('pill_wait',false);$('#statusDot').className='dot idle';hideHint();
+  };
+  function resetAnalysis(keepImg){
+    analyzed=false;lastResult=null;
+    $('#results').classList.remove('show');$('#reportTs').textContent='—';
+    $('#scanBtn').disabled=!keepImg;$('#scanLbl').textContent=tr('btn_auto');
+    $('#heatBtn').disabled=!keepImg;region.classList.remove('focus','locked');
+    if(!keepImg)region.classList.remove('show');
+  }
+
+  /* ---------------- demo synthetic X-ray ---------------- */
+  const DEMO_SVG=`<svg viewBox="0 0 600 800" xmlns="http://www.w3.org/2000/svg"><defs>
+    <radialGradient id="ti" cx="50%" cy="45%" r="65%"><stop offset="0%" stop-color="#2c3138"/><stop offset="70%" stop-color="#15181d"/><stop offset="100%" stop-color="#070809"/></radialGradient>
+    <linearGradient id="cr" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#3a4047"/><stop offset="18%" stop-color="#e8ecf0"/><stop offset="35%" stop-color="#8a9098"/><stop offset="65%" stop-color="#8a9098"/><stop offset="82%" stop-color="#e8ecf0"/><stop offset="100%" stop-color="#3a4047"/></linearGradient>
+    <linearGradient id="cu" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#33383f"/><stop offset="20%" stop-color="#d6dbe1"/><stop offset="40%" stop-color="#777d85"/><stop offset="60%" stop-color="#777d85"/><stop offset="80%" stop-color="#d6dbe1"/><stop offset="100%" stop-color="#33383f"/></linearGradient>
+    <filter id="sf"><feGaussianBlur stdDeviation="1.1"/></filter></defs>
+    <rect width="600" height="800" fill="#040506"/>
+    <path d="M210 40 Q150 250 170 470 Q180 660 230 770 L390 770 Q445 640 440 460 Q450 250 405 40 Z" fill="url(#ti)" filter="url(#sf)"/>
+    <path d="M360 70 Q380 260 372 470 Q368 640 352 760 L322 760 Q312 620 318 460 Q322 250 318 80 Z" fill="url(#cu)" filter="url(#sf)"/>
+    <path d="M340 95 Q352 300 346 470 Q344 600 338 740" stroke="#1c2025" stroke-width="9" fill="none" opacity=".7"/>
+    <path d="M235 80 Q210 250 218 430 L218 470 L222 560 Q230 660 252 762 L292 762 Q300 640 296 540 L296 470 L290 430 Q282 250 282 90 Z" fill="url(#cr)" filter="url(#sf)"/>
+    <path d="M250 110 Q236 300 244 430 M252 545 Q258 650 268 740" stroke="#1b1f24" stroke-width="11" fill="none" opacity=".75"/>
+    <path d="M214 472 L296 466" stroke="#050607" stroke-width="6"/><path d="M216 478 Q255 470 294 474" stroke="#0a0c0e" stroke-width="3" opacity=".9"/>
+    <path d="M212 470 l10 -7 m24 8 l8 -5 m22 6 l9 -6" stroke="#040506" stroke-width="3" opacity=".8"/>
+    <ellipse cx="300" cy="58" rx="120" ry="30" fill="#5a6068" opacity=".5" filter="url(#sf)"/>
+    <ellipse cx="300" cy="772" rx="110" ry="26" fill="#4a5057" opacity=".5" filter="url(#sf)"/></svg>`;
+
+  /* ---------------- init ---------------- */
+  applyImg();applyLang();
+})();
+</script>
+</body>
+</html>
